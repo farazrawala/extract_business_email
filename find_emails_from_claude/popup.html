@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Claude Email Finder</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>Claude Email Finder</h1>
+    <span id="phasePill" class="pill">idle</span>
+  </header>
+
+  <section class="settings">
+    <label class="full">New chat URL
+      <input id="chatUrl" type="text" placeholder="https://claude.ai/new" autocomplete="off">
+    </label>
+    <p class="hint">Looks only at businesses with no email after the Maps scrape <b>and</b> a ChatGPT search. Turn on <b>Web search</b> in Claude first.</p>
+    <label class="check" title="Claude answered NONE but named an address in its reply, e.g. for a related business. Saved with the result &quot;mentioned&quot;."><input id="saveMentioned" type="checkbox"> Also save emails named in the reply when the answer is NONE</label>
+    <div class="row row-2">
+      <label>Only ZIP code
+        <input id="zipcode" type="text" placeholder="any" autocomplete="off">
+      </label>
+      <label>Only category
+        <input id="category" type="text" placeholder="any" autocomplete="off">
+      </label>
+    </div>
+    <div class="row row-4">
+      <label title="Random wait between businesses">Min delay (s)
+        <input id="minDelay" type="number" min="0" step="1">
+      </label>
+      <label title="Random wait between businesses">Max delay (s)
+        <input id="maxDelay" type="number" min="0" step="1">
+      </label>
+      <label title="Give up on a business if the reply isn't finished by then">Reply timeout (s)
+        <input id="replyTimeout" type="number" min="30" max="900" step="10">
+      </label>
+      <label title="0 = keep going until no business is left">Max per run
+        <input id="maxPerRun" type="number" min="0" step="1">
+      </label>
+    </div>
+    <details class="fields">
+      <summary>Prompt</summary>
+      <textarea id="prompt" rows="12" spellcheck="false"></textarea>
+      <p class="hint">Placeholders: <code>{name}</code> <code>{category}</code> <code>{address}</code> <code>{street}</code> <code>{city}</code> <code>{state}</code> <code>{postal_code}</code> <code>{country}</code> <code>{zipcode}</code> <code>{phone}</code> <code>{website}</code> <code>{google_maps_url}</code>. A line whose placeholders are all empty is left out. Ask for <b>NONE</b> when nothing is found.</p>
+      <div class="field-tools"><button id="resetPrompt" type="button">Reset to default</button></div>
+    </details>
+  </section>
+
+  <section class="controls">
+    <button id="startBtn" class="primary">Start</button>
+    <button id="pauseBtn">Pause</button>
+    <button id="stopBtn" class="danger">Stop</button>
+  </section>
+
+  <section class="status">
+    <div class="kv"><span>Business</span><b id="business">–</b><span>Left</span><b id="remaining">–</b></div>
+    <div id="message" class="message">Ready</div>
+    <div id="countdown" class="countdown" hidden></div>
+    <div class="stats">
+      <span>Checked <b id="checked">0</b></span>
+      <span>Found <b id="found">0</b></span>
+      <span>None <b id="none">0</b></span>
+      <span>Errors <b id="errorCount">0</b></span>
+    </div>
+    <ul id="errors" class="errors"></ul>
+  </section>
+
+  <section>
+    <h2>Last 10</h2>
+    <table id="recent">
+      <thead><tr><th>Name</th><th>Email</th><th>Time</th></tr></thead>
+      <tbody><tr><td colspan="3" class="empty">Nothing yet</td></tr></tbody>
+    </table>
+  </section>
+
+  <section class="controls">
+    <button id="portalBtn" type="button">Open portal</button>
+    <button id="clearBtn" type="button" class="danger">Clear log</button>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>

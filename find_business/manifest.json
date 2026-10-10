@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Google Maps Business Scraper",
+  "version": "1.7.2",
+  "description": "Fetches a ZIP from your API, searches Google Maps, scrolls the results and scrapes each business listing.",
+  "permissions": ["storage", "tabs", "scripting", "activeTab", "unlimitedStorage"],
+  "host_permissions": [
+    "https://www.google.com/maps/*",
+    "http://*/*",
+    "https://*/*",
+    "https://www.google.com/maps*",
+    "https://testv3.websitedemolynk.com/*",
+    "http://localhost/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Maps Scraper"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.google.com/maps/*", "https://www.google.com/maps*"],
+      "js": ["selectors.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

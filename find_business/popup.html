@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Maps Scraper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1 id="title">Maps Scraper</h1>
+    <button id="settingsBtn" class="header-btn" type="button" title="Settings">&#9881; Settings</button>
+    <span id="phasePill" class="pill">idle</span>
+  </header>
+
+  <div id="settingsView" hidden>
+    <details class="fields" open>
+      <summary>Email (SMTP) <span id="smtpSummary" class="count"></span></summary>
+      <div class="form">
+        <div class="row row-2">
+          <label>Host
+            <input id="smtpHost" type="text" placeholder="smtp.gmail.com" autocomplete="off">
+          </label>
+          <label>Port
+            <input id="smtpPort" type="number" min="1" max="65535" step="1">
+          </label>
+        </div>
+        <label>Security
+          <select id="smtpSecurity">
+            <option value="starttls">STARTTLS (port 587)</option>
+            <option value="ssl">SSL/TLS (port 465)</option>
+            <option value="none">None (port 25)</option>
+          </select>
+        </label>
+        <label>Gmail address
+          <input id="smtpUser" type="email" placeholder="you@gmail.com" autocomplete="off">
+        </label>
+        <label>App password
+          <span class="secret">
+            <input id="smtpPassword" type="password" autocomplete="new-password">
+            <button type="button" class="show-btn" data-target="smtpPassword">Show</button>
+          </span>
+        </label>
+        <label>From name
+          <input id="smtpFromName" type="text" autocomplete="off">
+        </label>
+        <label>Groq API key
+          <span class="secret">
+            <input id="groqApiKey" type="password" autocomplete="off">
+            <button type="button" class="show-btn" data-target="groqApiKey">Show</button>
+          </span>
+        </label>
+      </div>
+    </details>
+    <p class="hint">Saved automatically in this browser's extension storage. Clear data doesn't remove these.</p>
+    <section class="controls">
+      <button id="settingsBackBtn" type="button">Back</button>
+    </section>
+  </div>
+
+  <div id="mainView">
+
+  <section class="settings">
+    <label class="full">Search keyword
+      <input id="keyword" type="text" placeholder="restaurants">
+    </label>
+    <div class="row">
+      <label>Max results / ZIP
+        <input id="maxResults" type="number" min="1" max="500" step="1">
+      </label>
+      <label>Min delay (s)
+        <input id="minDelay" type="number" min="0.5" step="0.5">
+      </label>
+      <label>Max delay (s)
+        <input id="maxDelay" type="number" min="0.5" step="0.5">
+      </label>
+    </div>
+    <label class="check"><input id="autoLoop" type="checkbox"> Auto-loop ZIPs (fetch the next ZIP when one finishes)</label>
+    <label class="check"><input id="includeSponsored" type="checkbox"> Include sponsored listings</label>
+    <label class="check"><input id="openAboutTab" type="checkbox"> Open "About" tab for all attributes (slower)</label>
+    <label class="check"><input id="findEmails" type="checkbox"> Find emails on each business website (slower)</label>
+  </section>
+
+  <section class="controls">
+    <button id="startBtn" class="primary">Start</button>
+    <button id="pauseBtn">Pause</button>
+    <button id="stopBtn" class="danger">Stop</button>
+  </section>
+
+  <section class="status">
+    <div class="kv"><span>ZIP</span><div class="zip-cell"><b id="zip">–</b><b id="countdown" class="countdown" title="Wait before scraping this listing (Min/Max delay)" hidden></b></div><span>Keyword</span><b id="kw">–</b></div>
+    <div id="message" class="message">Ready</div>
+    <div class="progress"><div id="bar"></div></div>
+    <div class="stats">
+      <span>Found <b id="found">0</b></span>
+      <span>Scraped <b id="done">0</b>/<b id="total">0</b></span>
+      <span>This run <b id="scraped">0</b></span>
+      <span title="Businesses this run with an email found on their website">Emails <b id="emailsFound">0</b></span>
+      <span>Stored <b id="stored">0</b></span>
+      <span>ZIPs <b id="zips">0</b></span>
+      <span class="lead-new" title="Businesses this run that the portal didn't have yet">New leads <b id="newLeads">0</b></span>
+      <span title="Businesses this run that were already in the portal (this ZIP or another), so they were updated, not added">Duplicates <b id="duplicates">0</b></span>
+      <span>Errors <b id="errorCount">0</b></span>
+    </div>
+    <ul id="errors" class="errors"></ul>
+  </section>
+
+  <section>
+    <h2>Last 10 scraped</h2>
+    <table id="recent">
+      <thead><tr><th>Name</th><th>Email</th><th>Rating</th><th>Phone</th><th>ZIP</th></tr></thead>
+      <tbody><tr><td colspan="5" class="empty">Nothing yet</td></tr></tbody>
+    </table>
+  </section>
+
+  <section>
+    <details id="fieldsBox" class="fields">
+      <summary>Export fields <span id="fieldCount" class="count"></span></summary>
+      <div class="field-tools">
+        <button id="fieldsAll" type="button">Select all</button>
+        <button id="fieldsNone" type="button">Select none</button>
+      </div>
+      <div id="fieldGroups"></div>
+      <p class="hint">Only changes what gets exported. Every field is still scraped and stored, so you can change this later and export again.</p>
+    </details>
+  </section>
+
+  <section class="controls">
+    <button id="csvBtn">Export CSV</button>
+    <button id="jsonBtn">Export JSON</button>
+    <button id="clearBtn" class="danger">Clear data</button>
+  </section>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gmail Business Mailer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>Gmail Business Mailer</h1>
+    <span id="phasePill" class="pill">idle</span>
+  </header>
+
+  <section class="settings">
+    <label class="full" title="Used when the active tab isn't Gmail. /u/0/ is your first Google account, /u/1/ the second…">Gmail URL
+      <input id="gmailUrl" type="text" placeholder="https://mail.google.com/mail/u/0/#inbox" autocomplete="off">
+    </label>
+    <div class="row row-3">
+      <label>Only ZIP code
+        <input id="zipcode" type="text" placeholder="any" autocomplete="off">
+      </label>
+      <label>Only category
+        <input id="category" type="text" placeholder="any" autocomplete="off">
+      </label>
+      <label title="Where the business's email address came from">Email found by
+        <select id="source">
+          <option value="">Any</option>
+          <option value="website">Website only</option>
+          <option value="chatgpt">ChatGPT only</option>
+          <option value="claude">Claude only</option>
+        </select>
+      </label>
+    </div>
+
+    <fieldset>
+      <legend>Duration</legend>
+      <div class="row row-3">
+        <label title="Random wait between two emails, lowest value">Delay min (s)
+          <input id="minDelay" type="number" min="0" step="5">
+        </label>
+        <label title="Random wait between two emails, highest value">Delay max (s)
+          <input id="maxDelay" type="number" min="0" step="5">
+        </label>
+        <label title="Stop the run after this many minutes. 0 = no time limit">Run for (min)
+          <input id="runMinutes" type="number" min="0" step="5">
+        </label>
+      </div>
+      <div class="row row-3">
+        <label title="Stop after sending this many emails in one run. 0 = no limit">Max per run
+          <input id="maxPerRun" type="number" min="0" step="1">
+        </label>
+        <label title="Emails sent today across all runs (local date). 0 = no limit. Gmail allows about 500 a day (2,000 for Workspace).">Max per day
+          <input id="maxPerDay" type="number" min="0" step="1">
+        </label>
+        <div class="readout"><span>Sent today</span><b id="sentToday">0</b></div>
+      </div>
+      <p id="pace" class="hint"></p>
+    </fieldset>
+
+    <label class="check" title="Mailtrack tracks an email only when its Send button gets a real click. The extension makes one through Chrome's debugger (Chrome shows a bar saying it is debugging the browser while a run is going). If Mailtrack still doesn't send, this decides what happens.">
+      <input id="allowUntracked" type="checkbox"> Send untracked if Mailtrack's Send doesn't respond (off: don't send)
+    </label>
+
+    <details class="fields">
+      <summary>Email writer (Groq)</summary>
+      <div class="row row-2">
+        <label>Tone
+          <select id="tone">
+            <option value="friendly">Friendly</option>
+            <option value="professional">Professional</option>
+            <option value="short">Short and direct</option>
+            <option value="casual">Casual</option>
+            <option value="persuasive">Persuasive</option>
+          </select>
+        </label>
+        <label>Length
+          <select id="length">
+            <option value="short">Short (60–100 words)</option>
+            <option value="medium">Medium (120–180 words)</option>
+            <option value="long">Long (200–280 words)</option>
+          </select>
+        </label>
+      </div>
+      <label class="full">Extra instructions (optional)
+        <textarea id="brief" rows="4" spellcheck="true" placeholder="e.g. Mention our 7-day delivery and offer a free homepage mockup."></textarea>
+      </label>
+      <label class="full" title="How the details taken from the business (name, rating, reviews, dishes, website…) show in the email">Business details in the email
+        <select id="highlight">
+          <option value="bold">Bold</option>
+          <option value="none">Plain text</option>
+        </select>
+      </label>
+      <p class="hint">Each email is written for one business from what the portal has on it (name, category, rating and reviews, city, website or none, menu and booking links, hours, highlights, review summary) and pitches one thing: more customers from Google search with $0 spent on ads. The Groq key and model are in the portal's Settings.</p>
+    </details>
+  </section>
+
+  <section class="controls">
+    <button id="startBtn" class="primary">Start</button>
+    <button id="pauseBtn">Pause</button>
+    <button id="stopBtn" class="danger">Stop</button>
+  </section>
+  <section class="controls">
+    <button id="testBtn" type="button" title="Write one email and fill it in Gmail without sending it">Test one (don't send)</button>
+  </section>
+
+  <section class="status">
+    <div class="kv">
+      <span>Business</span><b id="business">–</b><span>Left</span><b id="remaining">–</b>
+      <span>Gmail</span><b id="account">–</b><span>Run</span><b id="runTime">–</b>
+    </div>
+    <div id="subject" class="subject" hidden></div>
+    <div id="facts" class="facts" hidden></div>
+    <div id="message" class="message">Ready</div>
+    <div id="countdown" class="countdown" hidden></div>
+    <div class="stats">
+      <span>Sent <b id="sent">0</b></span>
+      <span>Failed <b id="failed">0</b></span>
+      <span>Errors <b id="errorCount">0</b></span>
+      <span id="untrackedWrap" hidden title="Sent without Mailtrack tracking">Untracked <b id="untracked">0</b></span>
+      <span id="pendingWrap" hidden>Not recorded <b id="pending">0</b></span>
+    </div>
+    <ul id="errors" class="errors"></ul>
+  </section>
+
+  <section>
+    <h2>Last 10</h2>
+    <table id="recent">
+      <thead><tr><th>Name</th><th>To / result</th><th>Time</th></tr></thead>
+      <tbody><tr><td colspan="3" class="empty">Nothing yet</td></tr></tbody>
+    </table>
+  </section>
+
+  <section class="controls">
+    <button id="portalBtn" type="button">Open portal</button>
+    <button id="clearBtn" type="button" class="danger">Clear log</button>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>
