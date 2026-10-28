@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.3 – 2026-10-28
+- ZIP fetch, ZIP update, and business save now go to the live portal at `https://email.demo-website.cc/`.
+
 ## 1.7.2 – 2026-10-10
 - New icon in the toolbar and on the Extensions page: a red map pin with a shop front, instead of Chrome's default grey letter.
 

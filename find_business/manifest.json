@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Google Maps Business Scraper",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Fetches a ZIP from your API, searches Google Maps, scrolls the results and scrapes each business listing.",
   "permissions": ["storage", "tabs", "scripting", "activeTab", "unlimitedStorage"],
   "host_permissions": [

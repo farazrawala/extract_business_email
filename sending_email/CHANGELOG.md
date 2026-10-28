@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.5 – 2026-10-28
+- The portal API and the Open portal button now use `https://email.demo-website.cc/`.
+
 ## 1.2.4 – 2026-10-10
 - **Email found by** has a new choice, **Claude only**: addresses found by the new Claude Email Finder (`find_emails_from_claude/`, portal API 1.26).
 

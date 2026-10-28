@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.7 – 2026-10-28
+- The portal API and the Open portal button now use `https://email.demo-website.cc/`.
+
 ## 1.1.6 – 2026-10-10
 - New ChatGPT icon in the toolbar and on the Extensions page, instead of Chrome's default grey letter.
 

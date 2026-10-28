@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.1 – 2026-10-28
+- The portal API and the Open portal button now use `https://email.demo-website.cc/`.
+
 ## 1.1.0 – 2026-10-10
 - When Claude's answer is NONE but its reply names an email (say, one it found for a related restaurant), that email is now saved too, with the result **mentioned** instead of **found** (portal API 1.27). Before, the business was saved as "none" and the email was lost. Last 10 shows these as "(in reply)".
 - New setting **Also save emails named in the reply when the answer is NONE** (on by default). Turn it off to save only emails Claude gives as its answer.

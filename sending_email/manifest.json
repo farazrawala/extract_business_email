@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gmail Business Mailer",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Gets businesses that were never emailed from the Business Portal, has Groq write a personal email for each from its details, and sends it through Gmail with a set delay between emails.",
   "permissions": ["storage", "tabs", "scripting", "alarms", "debugger"],
   "host_permissions": [
