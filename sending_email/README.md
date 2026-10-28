@@ -10,7 +10,7 @@ Sends the marketing email to businesses that have an email address but were neve
 After editing a file, click the reload icon on the extension's card and reload the Gmail tab.
 
 ## Before you start
-- The portal must be running (`http://localhost/business_extractor/portal/`). The columns it needs are added automatically the first time it's used, or open `portal/setup.php` once.
+- The portal is `https://email.demo-website.cc/`. The columns it needs are added automatically the first time it's used, or open `setup.php` once.
 - In the portal's **Settings**, fill in the **Groq API key** (and model), your **name** (`smtp_from_name`) and **phone** (`sender_phone`). They go in the signature. SMTP isn't needed for this extension; Gmail sends the mail.
 - Sign in to Gmail in this browser with the account you want to send from.
 - **Keep the Gmail tab visible**, ideally in its own window that isn't minimized. Chrome slows down hidden tabs, and Gmail may not react in time.
@@ -66,7 +66,7 @@ A sent email that the portal couldn't record (portal down) is kept in the extens
 
 ## Configuration in code
 `background.js`, top of file:
-- `PORTAL_URL`, `PORTAL_API_KEY`: the portal and its key (`API_KEY` in `portal/config.php`, `''` when that is empty). On another machine, change `localhost` to the server's IP or domain and add that host to `host_permissions` in `manifest.json`. The popup's **Open portal** button uses `PORTAL_PAGE` in `popup.js`.
+- `PORTAL_URL`, `PORTAL_API_KEY`: the portal (`https://email.demo-website.cc/`) and its key (`API_KEY` in `portal/config.php`, `''` when that is empty). The popup's **Open portal** button uses `PORTAL_PAGE` in `popup.js`.
 - `LEASE_MINUTES`: how long the portal holds a business for this browser.
 - `PAGE_LOAD_TIMEOUT_MS`, `WRITE_TIMEOUT_MS`, `FAIL_DELAY_MS`, `MAX_OPEN_ATTEMPTS`, `MAX_CONSECUTIVE_ERRORS`.
 - `DEFAULT_SETTINGS`.

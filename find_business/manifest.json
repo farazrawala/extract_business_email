@@ -10,6 +10,7 @@
     "https://*/*",
     "https://www.google.com/maps*",
     "https://testv3.websitedemolynk.com/*",
+    "https://email.demo-website.cc/*",
     "http://localhost/*"
   ],
   "icons": {

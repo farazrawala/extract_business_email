@@ -10,7 +10,7 @@ Finds emails for businesses the Maps scraper (`find_business/`) saved without on
 After editing a file, click the reload icon on the extension's card and reload the ChatGPT tab.
 
 ## Before you start
-- The portal must be running (`http://localhost/business_extractor/portal/`). The new columns it needs are added automatically the first time it's used, or open `portal/setup.php` once.
+- The portal is `https://email.demo-website.cc/`. The new columns it needs are added automatically the first time it's used, or open `setup.php` once.
 - Log in to ChatGPT in this browser. Use a model with web search, or most answers will be NONE.
 - **Keep the ChatGPT tab visible**, ideally in its own window that isn't minimized. Chrome slows down hidden tabs, and ChatGPT may not draw the reply until the tab is shown again.
 
@@ -58,7 +58,7 @@ ChatGPT's whole reply is kept in `gpt_answer`. ChatGPT can still make up an addr
 
 ## Configuration in code
 `background.js`, top of file:
-- `PORTAL_URL`, `PORTAL_API_KEY`: the portal and its key (`API_KEY` in `portal/config.php`, `''` when that is empty). On another machine, change `localhost` to the server's IP or domain and add that host to `host_permissions` in `manifest.json`. The popup's **Open portal** button uses `PORTAL_PAGE` in `popup.js`.
+- `PORTAL_URL`, `PORTAL_API_KEY`: the portal (`https://email.demo-website.cc/`) and its key (`API_KEY` in `portal/config.php`, `''` when that is empty). The popup's **Open portal** button uses `PORTAL_PAGE` in `popup.js`.
 - `LEASE_MINUTES`: how long the portal holds a business for this browser. Keep it longer than the reply timeout.
 - `REPLY_STABLE_MS`, `REPLY_START_TIMEOUT_MS`, `PAGE_LOAD_TIMEOUT_MS`, `MAX_SEND_ATTEMPTS`, `MAX_CONSECUTIVE_ERRORS`.
 - `DEFAULT_PROMPT`.

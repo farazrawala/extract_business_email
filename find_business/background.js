@@ -11,14 +11,13 @@
 // call claims a random pending ZIP, and a claimed ZIP is never handed out again, so every call
 // gets a new one. The result (done, failed, or released on Stop) is reported to ZIP_UPDATE_URL.
 // Uses SAVE_API_KEY.
-const ZIP_API_URL = 'http://localhost/business_extractor/portal/get_zipcode.php';
-const ZIP_UPDATE_URL = 'http://localhost/business_extractor/portal/update_zipcode.php';
+const ZIP_API_URL = 'https://email.demo-website.cc/get_zipcode.php';
+const ZIP_UPDATE_URL = 'https://email.demo-website.cc/update_zipcode.php';
 
 // POST scraped records to the Business Portal (portal/save_business.php, see portal/API.md).
 // Body: { extension_version, records: [ ... ] }. The portal upserts on business id + zip_id, so
-// retries are safe. On another machine, replace localhost with the server's IP or domain and
-// add that host to manifest.json "host_permissions".
-const SAVE_ENDPOINT = 'http://localhost/business_extractor/portal/save_business.php';
+// retries are safe.
+const SAVE_ENDPOINT = 'https://email.demo-website.cc/save_business.php';
 const SAVE_API_KEY = ''; // must match API_KEY in portal/config.php ('' = no key)
 const ENABLE_SAVE_ENDPOINT = true;
 const SAVE_BATCH_SIZE = 1; // 1 = POST every record immediately

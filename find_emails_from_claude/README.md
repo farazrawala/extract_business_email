@@ -12,7 +12,7 @@ Works the same way as the ChatGPT Email Finder, with its own queue in the portal
 After editing a file, click the reload icon on the extension's card and reload the Claude tab.
 
 ## Before you start
-- The portal must be running (`http://localhost/business_extractor/portal/`). The new columns it needs are added automatically the first time it's used, or open `portal/setup.php` once.
+- The portal is `https://email.demo-website.cc/`. The new columns it needs are added automatically the first time it's used, or open `setup.php` once.
 - Log in to claude.ai in this browser.
 - **Turn on Web search** in Claude (the tools button under the message box). Without it Claude can't look anything up. When Claude answers that it can't search the web, the run stops and tells you, so those businesses aren't marked "none".
 - **Keep the Claude tab visible**, ideally in its own window that isn't minimized. Chrome slows down hidden tabs.
@@ -66,7 +66,7 @@ Claude's whole reply is kept in `claude_answer`. Claude can be wrong now and the
 
 ## Configuration in code
 `background.js`, top of file:
-- `PORTAL_URL`, `PORTAL_API_KEY`: the portal and its key (`API_KEY` in `portal/config.php`, `''` when that is empty). On another machine, change `localhost` to the server's IP or domain and add that host to `host_permissions` in `manifest.json`. The popup's **Open portal** button uses `PORTAL_PAGE` in `popup.js`.
+- `PORTAL_URL`, `PORTAL_API_KEY`: the portal (`https://email.demo-website.cc/`) and its key (`API_KEY` in `portal/config.php`, `''` when that is empty). The popup's **Open portal** button uses `PORTAL_PAGE` in `popup.js`.
 - `LEASE_MINUTES`: how long the portal holds a business for this browser. Keep it longer than the reply timeout.
 - `REPLY_STABLE_MS`, `REPLY_UNCLEAR_STABLE_MS`, `REPLY_START_TIMEOUT_MS`, `PAGE_LOAD_TIMEOUT_MS`, `MAX_SEND_ATTEMPTS`, `MAX_CONSECUTIVE_ERRORS`.
 - `DEFAULT_PROMPT`.

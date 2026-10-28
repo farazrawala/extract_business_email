@@ -10,9 +10,8 @@
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-// Business Portal (see portal/API.md). On another machine, replace localhost with the server's
-// IP or domain and add that host to manifest.json "host_permissions".
-const PORTAL_URL = 'http://localhost/business_extractor/portal/';
+// Business Portal (see portal/API.md).
+const PORTAL_URL = 'https://email.demo-website.cc/';
 const PORTAL_API_KEY = ''; // must match API_KEY in portal/config.php ('' = no key)
 const LEASE_MINUTES = 20;  // how long the portal holds a business for us; longer than the max reply timeout
 

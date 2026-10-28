@@ -3,7 +3,7 @@
  * Settings are saved through background.js (which normalizes them) as soon as a field changes.
  */
 const $ = (id) => document.getElementById(id);
-const PORTAL_PAGE = 'http://localhost/business_extractor/portal/';
+const PORTAL_PAGE = 'https://email.demo-website.cc/';
 const FIELDS = ['gmailUrl', 'zipcode', 'category', 'source', 'minDelay', 'maxDelay', 'runMinutes', 'maxPerRun', 'maxPerDay', 'tone', 'length', 'brief', 'allowUntracked', 'highlight'];
 const PER_EMAIL_WORK_S = 20; // rough time to write (Groq) and send (Gmail) one email, for the pace hint
 

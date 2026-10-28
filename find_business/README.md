@@ -55,7 +55,7 @@ Clear data doesn't remove them. Nothing in the extension uses them yet.
 - `background.js`, top of file:
   - `ZIP_API_URL`, `ZIP_UPDATE_URL`: ZIPs come from the portal's `zipcodes` table (`portal/get_zipcode.php` and `portal/update_zipcode.php`, see `portal/API.md`). Each call claims a random pending ZIP; the extension reports it done or failed when it finishes, or released when you stop the run (the portal marks it stopped). A ZIP is handed out only once, so every run and every next ZIP is a new one. `SAVE_API_KEY` is sent with these too.
   - `SAVE_ENDPOINT`, `SAVE_API_KEY`, `ENABLE_SAVE_ENDPOINT`, `SAVE_BATCH_SIZE`: records are POSTed to the Business Portal (`portal/save_business.php`, see `portal/API.md`) as `{ extension_version, records: [...] }`, in batches of `SAVE_BATCH_SIZE` and again at the end of each ZIP and run. The portal updates a business it already has for the same `zip_id`, so retries are safe.
-    - Defaults to `http://localhost/business_extractor/portal/save_business.php`. On another machine, use the server's IP or domain and add that host to `host_permissions` in `manifest.json`.
+    - Defaults to `https://email.demo-website.cc/save_business.php`.
     - `SAVE_API_KEY` must match `API_KEY` in `portal/config.php` (leave `''` if that is empty). It is sent as `X-API-Key`.
     - If the portal is down or returns 400/401/413/500, the batch stays in `pendingSave` and is retried on the next flush. Records the portal rejects one by one (`errors` in the response, or 422) are logged in the popup's error list and not retried.
   - `MAX_CONSECUTIVE_ZIP_FAILURES`

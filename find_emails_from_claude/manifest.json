@@ -6,6 +6,7 @@
   "permissions": ["storage", "tabs", "scripting", "alarms"],
   "host_permissions": [
     "https://claude.ai/*",
+    "https://email.demo-website.cc/*",
     "http://localhost/*"
   ],
   "icons": {

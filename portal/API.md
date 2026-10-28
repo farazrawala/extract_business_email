@@ -2,8 +2,7 @@
 
 **API version:** 1.27 · **Last updated:** 2026-10-10 · **Works with extensions:** Maps scraper 1.7.2 (`find_business/manifest.json`), ChatGPT email finder 1.1.6 (`find_emails_from_gpt/manifest.json`), Claude email finder 1.1.0 (`find_emails_from_claude/manifest.json`), Gmail business mailer 1.2.4 (`sending_email/manifest.json`)
 
-Base URL (local XAMPP): `http://localhost/business_extractor/portal/`
-On another machine, replace `localhost` with the server's IP or domain.
+Base URL: `https://email.demo-website.cc/`
 
 All responses are JSON (`Content-Type: application/json; charset=utf-8`) and include `"ok": true|false`.
 CORS is open (`Access-Control-Allow-Origin: *`) for `GET`, `POST` and `OPTIONS`.
@@ -21,7 +20,7 @@ Controlled by `API_KEY` in [config.php](config.php).
 ## POST `save_business.php`: insert or update businesses
 
 ```
-POST http://localhost/business_extractor/portal/save_business.php
+POST https://email.demo-website.cc/save_business.php
 Content-Type: application/json
 ```
 
@@ -122,13 +121,13 @@ Rules for values:
 ### Example
 
 ```bash
-curl -X POST http://localhost/business_extractor/portal/save_business.php \
+curl -X POST https://email.demo-website.cc/save_business.php \
   -H "Content-Type: application/json" \
   -d '{"extension_version":"1.2.0","records":[{"name":"Test Biz","place_id":"test123","zip_id":"10001","rating":4.5}]}'
 ```
 
 ```js
-await fetch('http://localhost/business_extractor/portal/save_business.php', {
+await fetch('https://email.demo-website.cc/save_business.php', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' /*, 'X-API-Key': '...' */ },
   body: JSON.stringify({ extension_version: '1.2.0', records })
@@ -140,7 +139,7 @@ await fetch('http://localhost/business_extractor/portal/save_business.php', {
 ## GET `get_businesses.php`: read saved businesses
 
 ```
-GET http://localhost/business_extractor/portal/get_businesses.php?zipcode=10001&page=1&limit=50
+GET https://email.demo-website.cc/get_businesses.php?zipcode=10001&page=1&limit=50
 ```
 
 ### Query parameters (all optional)
@@ -177,7 +176,7 @@ Results come newest first (`ORDER BY id DESC`).
 ## GET `get_business_without_email.php`: next business to look up
 
 ```
-GET http://localhost/business_extractor/portal/get_business_without_email.php?zipcode=10001
+GET https://email.demo-website.cc/get_business_without_email.php?zipcode=10001
 ```
 
 Used by the ChatGPT email finder (`find_emails_from_gpt/`). Returns **one** business that:
@@ -217,7 +216,7 @@ Businesses are picked at random. Ones with fewer failed attempts come first (`OR
 | `500` | Database error |
 
 ```bash
-curl "http://localhost/business_extractor/portal/get_business_without_email.php?lease=20"
+curl "https://email.demo-website.cc/get_business_without_email.php?lease=20"
 ```
 
 ---
@@ -225,7 +224,7 @@ curl "http://localhost/business_extractor/portal/get_business_without_email.php?
 ## POST `save_gpt_email.php`: save a ChatGPT lookup
 
 ```
-POST http://localhost/business_extractor/portal/save_gpt_email.php
+POST https://email.demo-website.cc/save_gpt_email.php
 Content-Type: application/json
 ```
 
@@ -285,7 +284,7 @@ What happens:
 | `500` | Database error |
 
 ```bash
-curl -X POST http://localhost/business_extractor/portal/save_gpt_email.php \
+curl -X POST https://email.demo-website.cc/save_gpt_email.php \
   -H "Content-Type: application/json" \
   -d '{"business_id":12,"answer":"NONE"}'
 ```
@@ -308,7 +307,7 @@ Added to `businesses` automatically the first time an endpoint needs them (`setu
 ## GET `get_business_for_claude.php`: next business for the Claude lookup
 
 ```
-GET http://localhost/business_extractor/portal/get_business_for_claude.php?lease=20
+GET https://email.demo-website.cc/get_business_for_claude.php?lease=20
 ```
 
 Added in API 1.26. Used by the Claude email finder (`find_emails_from_claude/`), the second try after ChatGPT. Returns **one** business that:
@@ -325,7 +324,7 @@ Query parameters (all optional): `zipcode` (exact match), `category` (exact matc
 The response has the same shape as `get_business_without_email.php` (`remaining`, `lease_minutes`, `business` or `null`). `401` invalid API key, `500` database error.
 
 ```bash
-curl "http://localhost/business_extractor/portal/get_business_for_claude.php?lease=20"
+curl "https://email.demo-website.cc/get_business_for_claude.php?lease=20"
 ```
 
 ---
@@ -333,7 +332,7 @@ curl "http://localhost/business_extractor/portal/get_business_for_claude.php?lea
 ## POST `save_claude_email.php`: save a Claude lookup
 
 ```
-POST http://localhost/business_extractor/portal/save_claude_email.php
+POST https://email.demo-website.cc/save_claude_email.php
 Content-Type: application/json
 ```
 
@@ -353,7 +352,7 @@ Added in API 1.26. Saves what Claude answered for a business from `get_business_
 `found` and `none` set `claude_checked_at`. To check a business again, set its `claude_checked_at` back to `NULL`.
 
 ```bash
-curl -X POST http://localhost/business_extractor/portal/save_claude_email.php   -H "Content-Type: application/json"   -d '{"business_id":12,"emails":["info@hopsandbarley.com"],"answer":"info@hopsandbarley.com"}'
+curl -X POST https://email.demo-website.cc/save_claude_email.php   -H "Content-Type: application/json"   -d '{"business_id":12,"emails":["info@hopsandbarley.com"],"answer":"info@hopsandbarley.com"}'
 ```
 
 ### Columns used
@@ -373,7 +372,7 @@ Added to `businesses` automatically the first time an endpoint needs them (`setu
 ## GET `index.php`: browse listings (HTML)
 
 ```
-http://localhost/business_extractor/portal/
+https://email.demo-website.cc/
 ```
 
 A web page (not JSON) that lists every saved business:
@@ -395,7 +394,7 @@ The **Templates** button in the header opens `templates.php`, and **Settings** o
 ## GET/POST `settings.php`: portal settings (HTML)
 
 ```
-http://localhost/business_extractor/portal/settings.php
+https://email.demo-website.cc/settings.php
 ```
 
 A web form (not JSON) for the email (SMTP) settings, the Groq API key and model, and the marketing email template. `GET` shows the form. `POST` (form-encoded) validates and saves it, then redirects to `settings.php?saved=1` (303). If a field is invalid, the form is shown again with the errors. `send_email.php` uses the SMTP and template values. The Groq key and model are used by `generate_template.php` (the **Generate with Groq** button on `templates.php`).
@@ -447,8 +446,8 @@ Values are stored as plain text in the `settings` table (`setting_key`, `setting
 ## GET/POST `send_email.php`: marketing email to one business
 
 ```
-GET  http://localhost/business_extractor/portal/send_email.php?business_id=11
-POST http://localhost/business_extractor/portal/send_email.php
+GET  https://email.demo-website.cc/send_email.php?business_id=11
+POST https://email.demo-website.cc/send_email.php
 Content-Type: application/json
 ```
 
@@ -527,7 +526,7 @@ With `"preview": true`, `200`:
 | `502` | SMTP failed (not set up, couldn't connect, login refused, an address refused, …). If the server refuses any address, nothing is sent. `error` has the server's reply. The attempt is still logged. |
 
 ```bash
-curl -X POST http://localhost/business_extractor/portal/send_email.php \
+curl -X POST https://email.demo-website.cc/send_email.php \
   -H "Content-Type: application/json" \
   -d '{"business_id":11,"to":"carrie@flanneltavern.com, flanneltavern@gmail.com"}'
 ```
@@ -541,7 +540,7 @@ One row per send attempt: `id`, `business_id`, `to_email` (every recipient, join
 ## GET/POST `templates.php`: email templates (HTML)
 
 ```
-http://localhost/business_extractor/portal/templates.php
+https://email.demo-website.cc/templates.php
 ```
 
 A web page (not JSON) for more marketing email templates, next to the one in Settings:
@@ -563,7 +562,7 @@ Placeholders are the same as the Settings template: `{business_name}`, `{website
 ## POST `generate_template.php`: write a template with Groq
 
 ```
-POST http://localhost/business_extractor/portal/generate_template.php
+POST https://email.demo-website.cc/generate_template.php
 Content-Type: application/json
 ```
 
@@ -599,7 +598,7 @@ The model is told to use only the portal placeholders, to end with the standard 
 ## GET `get_templates.php`: list the templates
 
 ```
-GET http://localhost/business_extractor/portal/get_templates.php
+GET https://email.demo-website.cc/get_templates.php
 ```
 
 Returns the templates saved on `templates.php`, oldest first. Read-only: it doesn't change `times_used`. CORS is open like `get_businesses.php`.
@@ -635,7 +634,7 @@ Returns the templates saved on `templates.php`, oldest first. Read-only: it does
 ## GET `get_random_template.php`: one random template
 
 ```
-GET http://localhost/business_extractor/portal/get_random_template.php?business_id=14&exclude=3
+GET https://email.demo-website.cc/get_random_template.php?business_id=14&exclude=3
 ```
 
 Returns one template that is **On**, picked at random, and adds 1 to its `times_used` (unless `count=0`). With no template On, it returns the Settings template (`id: null`, `source: "settings"`). CORS is open like `get_businesses.php`.
@@ -668,7 +667,7 @@ To send it: `POST send_email.php` with `business_id`, `to`, and `filled.subject`
 | `500` | Database error |
 
 ```bash
-curl "http://localhost/business_extractor/portal/get_random_template.php?business_id=14"
+curl "https://email.demo-website.cc/get_random_template.php?business_id=14"
 ```
 
 ---
@@ -676,7 +675,7 @@ curl "http://localhost/business_extractor/portal/get_random_template.php?busines
 ## GET `get_business_to_email.php`: next business to email
 
 ```
-GET http://localhost/business_extractor/portal/get_business_to_email.php?source=website
+GET https://email.demo-website.cc/get_business_to_email.php?source=website
 ```
 
 Used by the Gmail business mailer (`sending_email/`). Returns **one** business that:
@@ -721,7 +720,7 @@ Businesses come oldest first (`ORDER BY id`). CORS is open like `get_business_wi
 | `500` | Database error |
 
 ```bash
-curl "http://localhost/business_extractor/portal/get_business_to_email.php?lease=15"
+curl "https://email.demo-website.cc/get_business_to_email.php?lease=15"
 ```
 
 ---
@@ -729,7 +728,7 @@ curl "http://localhost/business_extractor/portal/get_business_to_email.php?lease
 ## POST `generate_email.php`: an email for one business, written by Groq
 
 ```
-POST http://localhost/business_extractor/portal/generate_email.php
+POST https://email.demo-website.cc/generate_email.php
 Content-Type: application/json
 ```
 
@@ -783,7 +782,7 @@ The reply is cleaned like **Clean up** on `templates.php` and the placeholders a
 | `502` | Groq failed: no key in Settings, key refused, unknown model, timeout, or no usable reply after 2 tries. `error` says which. |
 
 ```bash
-curl -X POST http://localhost/business_extractor/portal/generate_email.php \
+curl -X POST https://email.demo-website.cc/generate_email.php \
   -H "Content-Type: application/json" \
   -d '{"business_id":128,"tone":"friendly","length":"medium"}'
 ```
@@ -793,7 +792,7 @@ curl -X POST http://localhost/business_extractor/portal/generate_email.php \
 ## POST `save_email_result.php`: record a Gmail send
 
 ```
-POST http://localhost/business_extractor/portal/save_email_result.php
+POST https://email.demo-website.cc/save_email_result.php
 Content-Type: application/json
 ```
 
@@ -852,7 +851,7 @@ To mail a business again, set its `mail_sent_at` and `mail_status` back to `NULL
 | `500` | Database error |
 
 ```bash
-curl -X POST http://localhost/business_extractor/portal/save_email_result.php \
+curl -X POST https://email.demo-website.cc/save_email_result.php \
   -H "Content-Type: application/json" \
   -d '{"business_id":128,"status":"sent","to":["info@sickiesburgers.com"],"subject":"…","body":"…","from_email":"you@gmail.com"}'
 ```
@@ -876,7 +875,7 @@ When the columns are first added, every business that already has a `sent` row i
 ## GET `get_zipcode.php`: next ZIP to scrape
 
 ```
-GET http://localhost/business_extractor/portal/get_zipcode.php
+GET https://email.demo-website.cc/get_zipcode.php
 ```
 
 Used by the Maps scraper (`find_business/`). Returns **one** ZIP from the `zipcodes` table that is pending (`status = 0`), **picked at random** (before API 1.21: lowest `id` first).
@@ -917,7 +916,7 @@ No query parameters (`lease` is no longer used and is ignored).
 | `500` | Database error (for example, the `zipcodes` table is missing) |
 
 ```bash
-curl "http://localhost/business_extractor/portal/get_zipcode.php"
+curl "https://email.demo-website.cc/get_zipcode.php"
 ```
 
 ---
@@ -925,7 +924,7 @@ curl "http://localhost/business_extractor/portal/get_zipcode.php"
 ## POST `update_zipcode.php`: report a ZIP
 
 ```
-POST http://localhost/business_extractor/portal/update_zipcode.php
+POST https://email.demo-website.cc/update_zipcode.php
 Content-Type: application/json
 ```
 
@@ -965,7 +964,7 @@ Reports what happened to a ZIP from `get_zipcode.php`.
 | `500` | Database error |
 
 ```bash
-curl -X POST http://localhost/business_extractor/portal/update_zipcode.php \
+curl -X POST https://email.demo-website.cc/update_zipcode.php \
   -H "Content-Type: application/json" \
   -d '{"id":1,"status":"done","scraped":42}'
 ```
@@ -987,7 +986,7 @@ When the columns are first added, every ZIP that already has businesses (`busine
 ## GET/POST `verify_email.php`: check email addresses
 
 ```
-GET http://localhost/business_extractor/portal/verify_email.php?next=1
+GET https://email.demo-website.cc/verify_email.php?next=1
 ```
 
 Checks whether addresses can receive mail, **without sending anything**. Used by **Verify** and **✓ Verify emails** on `index.php`. Each address goes through these steps ([email_verify.php](email_verify.php)):

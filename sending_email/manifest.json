@@ -6,6 +6,7 @@
   "permissions": ["storage", "tabs", "scripting", "alarms", "debugger"],
   "host_permissions": [
     "https://mail.google.com/*",
+    "https://email.demo-website.cc/*",
     "http://localhost/*"
   ],
   "icons": {

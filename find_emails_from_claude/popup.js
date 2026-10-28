@@ -3,7 +3,7 @@
  * Settings are saved through background.js (which normalizes them) as soon as a field changes.
  */
 const $ = (id) => document.getElementById(id);
-const PORTAL_PAGE = 'http://localhost/business_extractor/portal/';
+const PORTAL_PAGE = 'https://email.demo-website.cc/';
 const FIELDS = ['chatUrl', 'saveMentioned', 'zipcode', 'category', 'minDelay', 'maxDelay', 'replyTimeout', 'maxPerRun', 'prompt'];
 
 let defaults = {};
