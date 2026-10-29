@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.4 – 2026-10-29
+- A listing whose place panel is slow or titled slightly differently is retried instead of counted as "Details panel did not load in time" on the first miss. A failed ZIP no longer ends the run while Auto-loop is on; the next ZIP starts on its own.
+
 ## 1.7.3 – 2026-10-28
 - ZIP fetch, ZIP update, and business save now go to the live portal at `https://email.demo-website.cc/`.
 

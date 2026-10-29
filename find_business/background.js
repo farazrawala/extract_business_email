@@ -26,7 +26,7 @@ const SAVE_MAX_PER_REQUEST = 500; // portal MAX_RECORDS_PER_REQUEST
 const EXT_VERSION = chrome.runtime.getManifest().version;
 const MAPS_HOME = 'https://www.google.com/maps/?hl=en';
 const MAX_ERRORS_KEPT = 50;
-const MAX_CONSECUTIVE_ZIP_FAILURES = 3;
+const NEXT_ZIP_ALARM = 'next-zip';
 const ACTIVE_PHASES = ['searching', 'scrolling', 'scraping'];
 
 const DEFAULT_SETTINGS = {
@@ -133,6 +133,14 @@ function addError(error, name = '') {
 }
 
 const randInt = (min, max) => Math.floor(min + Math.random() * (max - min + 1));
+
+function scheduleNextZip(minMs, maxMs) {
+  chrome.alarms.create(NEXT_ZIP_ALARM, { when: Date.now() + randInt(minMs, maxMs) });
+}
+
+function clearNextZip() {
+  chrome.alarms.clear(NEXT_ZIP_ALARM);
+}
 const isMapsUrl = (u) => /^https:\/\/www\.google\.com\/maps/.test(u || '');
 
 // ---------------------------------------------------------------------------
@@ -296,6 +304,7 @@ async function pauseRun(paused) {
   const s = await patchState((prev) => (prev.running ? { paused, message: paused ? 'Paused' : 'Resumed' } : {}));
   if (!s.running) return { ok: false, error: 'Not running' };
   if (s.tabId != null) chrome.tabs.sendMessage(s.tabId, { type: paused ? 'PAUSE' : 'RESUME' }).catch(() => {});
+  if (paused) clearNextZip();
   if (!paused && s.phase === 'waiting') startNextZip();
   return { ok: true };
 }
@@ -313,6 +322,7 @@ async function finishRun(phase, message) {
   });
   if (phase === 'error') await addError(message);
   // Stopped (or broke) before the ZIP was reported: the portal marks it stopped, and the next run gets a new ZIP.
+  clearNextZip();
   if (release) reportZip(release, 'released');
   if (s.tabId != null) chrome.tabs.sendMessage(s.tabId, { type: 'STOP' }).catch(() => {});
   if (ENABLE_SAVE_ENDPOINT) queueSave(null, true);
@@ -595,7 +605,7 @@ async function onZipDone(result = {}) {
   const settings = await getSettings();
   if (settings.autoLoop) {
     await patchState({ phase: 'waiting', message: `${summary} — next ZIP soon…` });
-    setTimeout(startNextZip, randInt(3000, 8000));
+    scheduleNextZip(3000, 8000);
   } else {
     await finishRun('done', `Finished. ${summary}`);
   }
@@ -607,9 +617,9 @@ async function onZipFailed(error) {
   await reportZip(s.zip, 'failed', s.zipScraped || 0);
   if (!s.running) return;
   const settings = await getSettings();
-  if (settings.autoLoop && s.consecutiveFailures < MAX_CONSECUTIVE_ZIP_FAILURES) {
-    await patchState({ phase: 'waiting', message: `ZIP ${s.zip?.zipcode} failed: ${error} — trying next ZIP…` });
-    setTimeout(startNextZip, randInt(5000, 10000));
+  if (settings.autoLoop) {
+    await patchState({ phase: 'waiting', message: `ZIP ${s.zip?.zipcode} failed: ${error} — next ZIP…` });
+    scheduleNextZip(5000, 10000);
   } else {
     await finishRun('error', `ZIP ${s.zip?.zipcode} failed: ${error}`);
   }
@@ -670,6 +680,10 @@ async function route(msg, sender) {
     default: return { ok: false, error: `Unknown message ${msg?.type}` };
   }
 }
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === NEXT_ZIP_ALARM) startNextZip();
+});
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   route(msg, sender).then(

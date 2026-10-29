@@ -22,7 +22,7 @@
     maxScrollRounds: 300,
     relocateRounds: 40,      // max scrolls when a listing's link dropped out of a re-rendered feed
     feedTimeout: 20000,
-    detailsTimeout: 15000,
+    detailsTimeout: 25000,
     clickPauseMin: 400, clickPauseMax: 1200,
     tabPauseMin: 600, tabPauseMax: 1500,
     heartbeatMs: 15000,      // keeps the MV3 service worker awake during long waits
@@ -232,7 +232,7 @@
     for (let round = 0; round < TUNING.maxScrollRounds; round++) {
       await checkpoint();
       const feed = getFeed();
-      if (!feed) throw new Error('Results list disappeared while scrolling');
+      if (!feed) reopenSearch(job, 'Results list disappeared while scrolling');
       sendProgress('scrolling', `Scrolling results… ${found.size} listings found`, { found: found.size + alreadyDone });
 
       if (found.size + alreadyDone >= max) break;
@@ -305,14 +305,64 @@
   // ======================================================================
   // Details panel
   // ======================================================================
+  /** Feed title vs the open place. Maps often adds a short suffix, or the other way around. */
+  function samePlaceName(a, b) {
+    const x = normName(a);
+    const y = normName(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    const short = x.length <= y.length ? x : y;
+    const long = x.length <= y.length ? y : x;
+    if (short.length >= 4 && long.startsWith(short)) return true;
+    return short.length >= 10 && long.includes(short);
+  }
+
+  function urlMatchesListing(listing) {
+    const href = safeDecode(location.href);
+    if (listing.hex && href.includes(listing.hex)) return true;
+    if (listing.placeId && href.includes(listing.placeId)) return true;
+    const slug = normName(listing.name);
+    if (slug.length < 8) return false;
+    return href.replace(/\+/g, ' ').replace(/-/g, ' ').toLowerCase().includes(slug);
+  }
+
+  /** Largest box around this heading that does not also contain the results list. */
+  function detailsRootFrom(h1) {
+    let node = h1;
+    const feed = getFeed();
+    for (let i = 0; i < 16; i++) {
+      const parent = node.parentElement;
+      if (!parent || parent === document.body || parent === document.documentElement) break;
+      if (feed && parent.contains(feed)) break;
+      node = parent;
+    }
+    return node;
+  }
+
   function findDetailsPanel(expectedName) {
-    const want = expectedName ? normName(expectedName) : '';
-    const panels = [...document.querySelectorAll(S.DETAILS_PANEL)]
-      .filter((p) => p.querySelector(S.PLACE_NAME) && !p.querySelector(S.FEED));
+    const feed = getFeed();
+    const panels = [];
+    const seen = new Set();
+    const add = (panel) => {
+      if (!panel || seen.has(panel)) return;
+      seen.add(panel);
+      panels.push(panel);
+    };
+    for (const h1 of document.querySelectorAll(S.PLACE_NAME)) {
+      if (!isVisible(h1) || (feed && feed.contains(h1))) continue;
+      add(detailsRootFrom(h1));
+    }
+    for (const panel of document.querySelectorAll(S.DETAILS_PANEL)) {
+      if (feed && panel.contains(feed)) continue;
+      if (panel.querySelector(S.PLACE_NAME)) add(panel);
+    }
     if (!panels.length) return null;
+    const want = expectedName ? normName(expectedName) : '';
     if (want) {
-      const exact = panels.find((p) =>
-        normName(p.querySelector(S.PLACE_NAME).textContent) === want || normName(p.getAttribute('aria-label')) === want);
+      const exact = panels.find((panel) => {
+        const h1 = panel.querySelector(S.PLACE_NAME);
+        return samePlaceName(h1?.textContent, want) || samePlaceName(panel.getAttribute?.('aria-label'), want);
+      });
       if (exact) return exact;
     }
     return panels[panels.length - 1];
@@ -334,19 +384,20 @@
   /** Wait until the details panel shows THIS listing (URL id and/or h1 name match). */
   function waitForDetails(listing) {
     const start = Date.now();
-    const want = normName(listing.name);
     const prev = normName(lastScrapedName);
     return waitFor(() => {
       const panel = findDetailsPanel(listing.name);
       if (!panel) return null;
       const h1 = normName(panel.querySelector(S.PLACE_NAME)?.textContent);
       if (!h1) return null;
-      const href = safeDecode(location.href);
-      const urlOk = (listing.hex && href.includes(listing.hex)) || (listing.placeId && href.includes(listing.placeId));
-      const nameOk = want && h1 === want;
+      const nameOk = samePlaceName(h1, listing.name);
+      const urlOk = urlMatchesListing(listing);
       const elapsed = Date.now() - start;
-      if (nameOk && (urlOk || elapsed > 3000)) return panel;
-      if (urlOk && elapsed > 6000 && h1 !== prev) return panel; // name differs slightly (e.g. translation)
+      // A new title is enough. The same title as the previous place still needs the URL,
+      // so a slow click is not saved as the business that was already open.
+      if (nameOk && h1 !== prev) return panel;
+      if (nameOk && (urlOk || elapsed > 2500)) return panel;
+      if (urlOk && elapsed > 4000 && h1 !== prev) return panel;
       return null;
     }, { timeout: TUNING.detailsTimeout });
   }
@@ -568,21 +619,25 @@
     return record;
   }
 
-  /** Click a listing in the feed, wait for its panel, extract. Retries the click once. */
+  /** Click a listing in the feed, wait for its panel, extract. Retries the click twice. */
   async function scrapeListing(listing, job) {
     let opened = null;
-    for (let attempt = 1; attempt <= 2 && !opened; attempt++) {
+    let sawLink = false;
+    for (let attempt = 1; attempt <= 3 && !opened; attempt++) {
       await checkpoint();
       await ensureFeedVisible();
       const link = await locateLinkInFeed(listing);
-      if (!link) throw new Error('Listing link not found in results list');
-      link.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      if (!link) continue;
+      sawLink = true;
+      (link.closest(S.FEED_CARD) || link).scrollIntoView({ block: 'center', behavior: 'auto' });
       await humanDelay(TUNING.clickPauseMin, TUNING.clickPauseMax);
       link.click();
       opened = await waitForDetails(listing);
       await checkpoint();
     }
-    if (!opened) throw new Error('Details panel did not load in time');
+    if (!opened) {
+      throw new Error(sawLink ? 'Details panel did not load in time' : 'Listing link not found in results list');
+    }
     return scrapeOpenPanel(listing, job, opened);
   }
 
@@ -601,6 +656,17 @@
   // ======================================================================
   // Job runner
   // ======================================================================
+  /** The results list vanished. Reload this ZIP's search instead of failing the run. */
+  function reopenSearch(job, why) {
+    const navKey = 'ms_nav_' + job.searchUrl;
+    const tries = Number(sessionStorage.getItem(navKey) || 0);
+    if (tries >= 3) throw new Error(why);
+    sessionStorage.setItem(navKey, String(tries + 1));
+    sendProgress('searching', 'Results list disappeared — reopening the search…');
+    location.href = job.searchUrl;
+    throw new NavigatingSignal();
+  }
+
   async function doZip(job) {
     const skipKeys = new Set(job.skipKeys || []);
     const navKey = 'ms_nav_' + job.searchUrl;
@@ -611,16 +677,11 @@
 
     if (!feed) {
       const tries = Number(sessionStorage.getItem(navKey) || 0);
-      if (tries < 1) {
-        // e.g. the tab reloaded on a place page — reopen the search once.
-        sessionStorage.setItem(navKey, String(tries + 1));
-        sendProgress('searching', 'Reopening search results…');
-        location.href = job.searchUrl;
-        throw new NavigatingSignal();
+      if (tries >= 1 && location.pathname.includes('/maps/place/') && findDetailsPanel()) {
+        sessionStorage.removeItem(navKey);
+        return scrapeSinglePlace(job, skipKeys);
       }
-      sessionStorage.removeItem(navKey);
-      if (location.pathname.includes('/maps/place/') && findDetailsPanel()) return scrapeSinglePlace(job, skipKeys);
-      throw new Error('Results list not found (role="feed"). Google may have changed its markup or shown a block page.');
+      reopenSearch(job, 'Results list not found (role="feed"). Google may have changed its markup or shown a block page.');
     }
     sessionStorage.removeItem(navKey);
 
@@ -628,6 +689,7 @@
     const total = listings.length;
     let scraped = 0;
     let errors = 0;
+    const failed = [];
 
     for (let i = 0; i < total; i++) {
       await checkpoint();
@@ -638,7 +700,22 @@
         await send('RECORD', { record });
         scraped++;
       } catch (e) {
-        if (e instanceof StopError) throw e;
+        if (e instanceof StopError || e instanceof NavigatingSignal) throw e;
+        failed.push(listing);
+        LOG('Listing failed, will retry:', listing.name, e);
+      }
+    }
+
+    for (let i = 0; i < failed.length; i++) {
+      await checkpoint();
+      const listing = failed[i];
+      sendProgress('scraping', `Retrying ${i + 1} of ${failed.length}: ${listing.name}`, { found: total + alreadyDone, done: total, total });
+      try {
+        const record = await scrapeListing(listing, job);
+        await send('RECORD', { record });
+        scraped++;
+      } catch (e) {
+        if (e instanceof StopError || e instanceof NavigatingSignal) throw e;
         errors++;
         LOG('Listing failed:', listing.name, e);
         await send('LISTING_ERROR', { error: e.message || String(e), name: listing.name, key: listing.key });
