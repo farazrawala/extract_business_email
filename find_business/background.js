@@ -30,6 +30,8 @@ const ERRORS_BEFORE_RELOAD = 5; // more than this many errors in a row reloads t
 const NEXT_ZIP_ALARM = 'next-zip';
 const RESUME_ALARM = 'resume-run';
 const TAB_CLOSED_ALARM = 'tab-closed';
+const WATCHDOG_ALARM = 'keep-alive';
+const STALL_MS = 3 * 60 * 1000;
 const ACTIVE_PHASES = ['searching', 'scrolling', 'scraping'];
 
 const DEFAULT_SETTINGS = {
@@ -192,6 +194,25 @@ function scheduleNextZip(minMs, maxMs) {
 function clearNextZip() {
   chrome.alarms.clear(NEXT_ZIP_ALARM);
 }
+
+function armWatchdog() {
+  chrome.alarms.create(WATCHDOG_ALARM, { periodInMinutes: 1 });
+}
+
+function clearWatchdog() {
+  chrome.alarms.clear(WATCHDOG_ALARM);
+}
+
+function stayAwake(on) {
+  if (!chrome.power) return;
+  if (on) chrome.power.requestKeepAwake('display');
+  else chrome.power.releaseKeepAwake();
+}
+
+async function pinTab(tabId) {
+  if (tabId == null) return;
+  try { await chrome.tabs.update(tabId, { autoDiscardable: false }); } catch { /* tab gone */ }
+}
 const isMapsUrl = (u) => /^https:\/\/www\.google\.com\/maps/.test(u || '');
 
 // ---------------------------------------------------------------------------
@@ -204,7 +225,7 @@ const apiHeaders = (json) => ({
 
 /** Claims a random pending ZIP. Returns null when the portal has none left. */
 async function fetchZip() {
-  const res = await fetch(ZIP_API_URL, { cache: 'no-store', headers: apiHeaders(false) });
+  const res = await fetch(ZIP_API_URL, { cache: 'no-store', headers: apiHeaders(false), signal: AbortSignal.timeout(20000) });
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { throw new Error(`API did not return JSON (HTTP ${res.status}): ${text.slice(0, 120)}`); }
@@ -257,6 +278,7 @@ async function getOrCreateMapsTab(hintTabId) {
     } catch { /* tab gone */ }
   }
   const t = await chrome.tabs.create({ url: MAPS_HOME, active: true });
+  await pinTab(t.id);
   return t.id;
 }
 
@@ -277,6 +299,9 @@ async function startRun(msg) {
     startedAt: new Date().toISOString(),
   }));
   startNextZip();
+  stayAwake(true);
+  armWatchdog();
+  pinTab(tabId);
   return { ok: true };
 }
 
@@ -388,6 +413,8 @@ async function finishRun(phase, message) {
   if (phase === 'error') await addError(message);
   // Stopped (or broke) before the ZIP was reported: the portal marks it stopped, and the next run gets a new ZIP.
   clearNextZip();
+  clearWatchdog();
+  stayAwake(false);
   if (release) reportZip(release, 'released');
   if (s.tabId != null) chrome.tabs.sendMessage(s.tabId, { type: 'STOP' }).catch(() => {});
   if (ENABLE_SAVE_ENDPOINT) queueSave(null, true);
@@ -583,6 +610,7 @@ async function postBatch(batch) {
       method: 'POST',
       headers,
       body: JSON.stringify({ extension_version: EXT_VERSION, records: batch }),
+      signal: AbortSignal.timeout(20000),
     });
     data = await res.json().catch(() => null);
   } catch (e) {
@@ -734,6 +762,7 @@ async function onContentMessage(msg, tabId) {
       return { ok: true };
     case 'ZIP_STOPPED':
     case 'HEARTBEAT':
+      await patchState({});
       return { ok: true };
     default:
       return { ok: false, error: `Unknown message ${msg.type}` };
@@ -756,6 +785,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === NEXT_ZIP_ALARM) startNextZip();
   if (alarm.name === RESUME_ALARM) resumeAfterRestart();
   if (alarm.name === TAB_CLOSED_ALARM) confirmTabClosed();
+  if (alarm.name === WATCHDOG_ALARM) keepAlive();
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -857,7 +887,11 @@ chrome.runtime.onInstalled.addListener(async () => {
   const { settings } = await chrome.storage.local.get('settings');
   await chrome.storage.local.set({ settings: normalizeSettings(settings) });
   const s = await getState();
-  if (s.running) await patchState({ running: false, paused: false, phase: 'stopped', message: 'Extension updated — press Start to continue.' });
+  if (s.running && !s.paused) {
+    stayAwake(true);
+    armWatchdog();
+    chrome.alarms.create(RESUME_ALARM, { when: Date.now() + 1500 });
+  }
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -865,9 +899,56 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.alarms.create(RESUME_ALARM, { when: Date.now() + 1500 });
 });
 
-// A run this version already stopped because Chrome restarted. Continue that same ZIP once.
+// Keep a live run armed after the service worker wakes. Do not reload the page here.
 getState().then((s) => {
+  if (s.running && !s.paused) {
+    stayAwake(true);
+    armWatchdog();
+  }
   const interrupted = !s.running && s.phase === 'stopped'
     && /Browser restarted/.test(s.message || '') && s.zip && !s.zipReported;
   if (interrupted) chrome.alarms.create(RESUME_ALARM, { when: Date.now() + 1500 });
 });
+
+/** Once a minute: retry a stalled Maps tab, and send any businesses still waiting. */
+async function keepAlive() {
+  const s = await getState();
+  if (!s.running || s.paused) return;
+  stayAwake(true);
+  await pinTab(s.tabId);
+
+  const age = s.updatedAt ? Date.now() - new Date(s.updatedAt).getTime() : STALL_MS + 1;
+  const stalled = age > STALL_MS;
+
+  let tabAlive = false;
+  if (s.tabId != null) {
+    try {
+      const tab = await chrome.tabs.get(s.tabId);
+      tabAlive = true;
+      if (tab.discarded) {
+        await chrome.tabs.reload(s.tabId);
+        await patchState({ message: 'Maps tab was asleep — reloaded.' });
+        return;
+      }
+    } catch { tabAlive = false; }
+  }
+  if (!tabAlive) {
+    await reloadScraperPage();
+    return;
+  }
+
+  if (s.phase === 'waiting' || s.phase === 'starting' || (stalled && s.phase === 'fetching_zip')) {
+    const pending = await chrome.alarms.get(NEXT_ZIP_ALARM);
+    if (!pending) {
+      if (s.phase === 'fetching_zip') await patchState({ phase: 'starting' });
+      scheduleNextZip(2000, 5000);
+    }
+    return;
+  }
+
+  if (stalled && s.zip && ACTIVE_PHASES.includes(s.phase)) {
+    if (ENABLE_SAVE_ENDPOINT) queueSave(null, true);
+    await patchState({ message: 'No progress for 3 minutes — reloading Maps…' });
+    await reloadScraperPage();
+  }
+}

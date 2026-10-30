@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.7 – 2026-10-30
+- Keeps the computer awake and checks every minute. If the Maps tab sleeps, closes, or makes no progress for 3 minutes, it reloads and continues the same run. Pending businesses are sent when the site is back.
+
 ## 1.7.6 – 2026-10-30
 - More than 5 errors in a row reloads the Maps tab and continues the same ZIP. A failed save, a missed place, a closed tab, a CAPTCHA, or a ZIP error no longer ends the run.
 
