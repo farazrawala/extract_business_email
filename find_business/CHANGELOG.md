@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.6 – 2026-10-30
+- More than 5 errors in a row reloads the Maps tab and continues the same ZIP. A failed save, a missed place, a closed tab, a CAPTCHA, or a ZIP error no longer ends the run.
+
 ## 1.7.5 – 2026-10-30
 - Chrome restarting no longer ends the run. The same ZIP continues, and places already saved are skipped.
 

@@ -26,6 +26,7 @@ const SAVE_MAX_PER_REQUEST = 500; // portal MAX_RECORDS_PER_REQUEST
 const EXT_VERSION = chrome.runtime.getManifest().version;
 const MAPS_HOME = 'https://www.google.com/maps/?hl=en';
 const MAX_ERRORS_KEPT = 50;
+const ERRORS_BEFORE_RELOAD = 5; // more than this many errors in a row reloads the Maps tab
 const NEXT_ZIP_ALARM = 'next-zip';
 const RESUME_ALARM = 'resume-run';
 const TAB_CLOSED_ALARM = 'tab-closed';
@@ -72,6 +73,7 @@ function freshState() {
     duplicates: 0,          // saved by the portal, but the business was already there (any ZIP)
     recordCount: 0,         // records in storage
     errorCount: 0,
+    consecutiveErrors: 0,   // reset after a successful portal save; reload Maps when this passes 5
     errors: [],
     recent: [],
     doneKeys: [],           // listing keys already saved for the current ZIP
@@ -132,6 +134,53 @@ function addError(error, name = '') {
     errorCount: s.errorCount + 1,
     errors: [{ at: new Date().toISOString(), zip: s.zip?.zipcode || '', name, error }, ...s.errors].slice(0, MAX_ERRORS_KEPT),
   }));
+}
+
+let reloadInFlight = false;
+
+/** Log an error and keep going. More than 5 in a row reloads the Maps tab. Returns { reloaded }. */
+async function noteError(error, name = '') {
+  const logged = await addError(error, name);
+  const count = (logged.consecutiveErrors || 0) + 1;
+  if (count > ERRORS_BEFORE_RELOAD && logged.running) {
+    await patchState({ consecutiveErrors: 0 });
+    await reloadScraperPage();
+    return { reloaded: true };
+  }
+  await patchState({ consecutiveErrors: count });
+  return { reloaded: false };
+}
+
+/** Reload the Maps tab so the content script starts again. Already-saved places stay skipped. */
+async function reloadScraperPage() {
+  if (reloadInFlight) return;
+  reloadInFlight = true;
+  try {
+    const s = await getState();
+    if (!s.running) return;
+    const url = s.searchUrl
+      || (s.zip && s.keyword ? buildSearchUrl(`${s.keyword} in ${s.zip.zipcode}`, s.zip) : MAPS_HOME);
+    let tabId = s.tabId;
+    try {
+      if (tabId != null) await chrome.tabs.get(tabId);
+      else tabId = null;
+    } catch { tabId = null; }
+    await patchState({
+      tabId,
+      phase: 'searching',
+      message: 'More than 5 errors in a row — reloading Maps…',
+    });
+    if (tabId == null) {
+      const created = await chrome.tabs.create({ url, active: true });
+      await patchState({ tabId: created.id });
+    } else {
+      await chrome.tabs.reload(tabId, { bypassCache: true });
+    }
+  } catch (e) {
+    await addError(`Could not reload the Maps tab: ${e.message}`);
+  } finally {
+    setTimeout(() => { reloadInFlight = false; }, 8000);
+  }
 }
 
 const randInt = (min, max) => Math.floor(min + Math.random() * (max - min + 1));
@@ -247,11 +296,17 @@ async function startNextZip() {
   try {
     zip = await fetchZip();
   } catch (e) {
-    return finishRun('error', `ZIP API failed: ${e.message}`);
+    await noteError(`ZIP API failed: ${e.message}`);
+    await patchState({ phase: 'waiting', message: `ZIP API failed: ${e.message} — trying again…` });
+    scheduleNextZip(8000, 15000);
+    return;
   }
   if (!zip) return finishRun('done', 'No pending ZIP codes left.');
   if (s.lastCompletedZipId && zip.id && zip.id === s.lastCompletedZipId) {
-    return finishRun('error', `API returned ZIP ${zip.zipcode} (id ${zip.id}) again — stopping to avoid a loop.`);
+    await noteError(`API returned ZIP ${zip.zipcode} (id ${zip.id}) again — trying another.`);
+    await patchState({ phase: 'waiting', message: 'Same ZIP returned — trying again…' });
+    scheduleNextZip(8000, 15000);
+    return;
   }
 
   const settings = await getSettings();
@@ -269,7 +324,10 @@ async function startNextZip() {
       const created = await chrome.tabs.create({ url: searchUrl, active: true });
       await patchState({ tabId: created.id });
     } catch (e) {
-      return finishRun('error', `Could not open the Maps tab: ${e.message}`);
+      await noteError(`Could not open the Maps tab: ${e.message}`);
+      await patchState({ phase: 'waiting', message: 'Could not open Maps — trying again…' });
+      scheduleNextZip(5000, 10000);
+      return;
     }
   }
   // Content script announces itself with CONTENT_READY; tabs.onUpdated is the fallback.
@@ -528,27 +586,28 @@ async function postBatch(batch) {
     });
     data = await res.json().catch(() => null);
   } catch (e) {
-    await addError(`Save endpoint unreachable (${batch.length} pending): ${e.message}`);
+    await noteError(`Save endpoint unreachable (${batch.length} pending): ${e.message}`);
     return false;
   }
 
   // 422 = every record failed, 200 + ok:false = some failed. Both are data problems: log and drop.
   if (data && Array.isArray(data.errors) && (res.ok || res.status === 422)) {
     for (const err of data.errors.slice(0, 10)) {
-      await addError(`Save rejected: ${err.error}`, err.name || batch[err.index]?.name || '');
+      await noteError(`Save rejected: ${err.error}`, err.name || batch[err.index]?.name || '');
     }
-    if (data.errors.length > 10) await addError(`Save rejected ${data.errors.length - 10} more records`);
+    if (data.errors.length > 10) await noteError(`Save rejected ${data.errors.length - 10} more records`);
     await markLeads(batch, data.results);
     return true;
   }
   if (res.ok && data?.ok) {
     await markLeads(batch, data.results);
+    await patchState({ consecutiveErrors: 0 });
     return true;
   }
 
   // 400/401/405/413/500 or a non-JSON reply: keep the batch and retry on the next flush.
   const why = data?.error || `HTTP ${res.status}`;
-  await addError(`Save endpoint failed (${batch.length} pending): ${why}`);
+  await noteError(`Save endpoint failed (${batch.length} pending): ${why}`);
   return false;
 }
 
@@ -602,6 +661,7 @@ async function onZipDone(result = {}) {
     zipsCompleted: prev.zipsCompleted + 1,
     lastCompletedZipId: prev.zip?.id ?? null,
     consecutiveFailures: 0,
+    consecutiveErrors: 0,
     zipReported: true,
   }));
   await reportZip(s.zip, 'done', s.zipScraped || 0);
@@ -619,16 +679,20 @@ async function onZipDone(result = {}) {
 }
 
 async function onZipFailed(error) {
-  const s = await patchState((prev) => ({ consecutiveFailures: prev.consecutiveFailures + 1, zipReported: true }));
-  await addError(`ZIP failed: ${error}`);
-  await reportZip(s.zip, 'failed', s.zipScraped || 0);
-  if (!s.running) return;
+  const { reloaded } = await noteError(`ZIP failed: ${error}`);
+  const s = await getState();
+  if (!s.running || reloaded) return;
   const settings = await getSettings();
   if (settings.autoLoop) {
-    await patchState({ phase: 'waiting', message: `ZIP ${s.zip?.zipcode} failed: ${error} — next ZIP…` });
+    await reportZip(s.zip, 'failed', s.zipScraped || 0);
+    await patchState({
+      phase: 'waiting', zipReported: true, consecutiveFailures: (s.consecutiveFailures || 0) + 1,
+      message: `ZIP ${s.zip?.zipcode} failed: ${error} — next ZIP…`,
+    });
     scheduleNextZip(5000, 10000);
   } else {
-    await finishRun('error', `ZIP ${s.zip?.zipcode} failed: ${error}`);
+    await patchState({ phase: 'searching', message: `ZIP error: ${error} — trying the page again…` });
+    if (s.tabId != null) dispatchJob(s.tabId);
   }
 }
 
@@ -660,7 +724,7 @@ async function onContentMessage(msg, tabId) {
     case 'RECORD':
       return appendRecord(await addEmails(msg.record || {}));
     case 'LISTING_ERROR':
-      await addError(msg.error || 'Unknown error', msg.name || '');
+      await noteError(msg.error || 'Unknown error', msg.name || '');
       return { ok: true };
     case 'ZIP_DONE':
       if (s.running) await onZipDone(msg.result);
@@ -711,10 +775,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   if (!s.running || tabId !== s.tabId) return;
   const url = tab.url || '';
   if (/^https:\/\/consent\.google\./.test(url)) {
-    return finishRun('error', 'Google consent page shown — accept it in the tab, then press Start again.');
+    await noteError('Google consent page shown — accept it in the tab. The run keeps going.');
+    return;
   }
   if (/^https:\/\/(www\.)?google\.[^/]+\/sorry\//.test(url)) {
-    return finishRun('error', 'Google is showing a CAPTCHA ("unusual traffic"). Solve it, wait, then restart.');
+    await noteError('Google is showing a CAPTCHA ("unusual traffic"). Solve it. The run keeps going.');
+    return;
   }
   if (!isMapsUrl(url)) return;
   // Fallback: if the content script didn't announce itself, inject it.
@@ -734,7 +800,8 @@ async function confirmTabClosed() {
   try {
     await chrome.tabs.get(s.tabId);
   } catch {
-    finishRun('error', 'The scraper tab was closed.');
+    await noteError('The scraper tab was closed. Reopening…');
+    await reloadScraperPage();
   }
 }
 
@@ -778,7 +845,8 @@ async function resumeAfterRestart() {
   try {
     await chrome.tabs.update(tabId, { url, active: true });
   } catch (e) {
-    finishRun('error', `Could not reopen Maps after the browser restarted: ${e.message}`);
+    await noteError(`Could not reopen Maps after the browser restarted: ${e.message}`);
+    chrome.alarms.create(RESUME_ALARM, { when: Date.now() + 8000 });
   }
 }
 
