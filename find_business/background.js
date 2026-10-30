@@ -27,6 +27,8 @@ const EXT_VERSION = chrome.runtime.getManifest().version;
 const MAPS_HOME = 'https://www.google.com/maps/?hl=en';
 const MAX_ERRORS_KEPT = 50;
 const NEXT_ZIP_ALARM = 'next-zip';
+const RESUME_ALARM = 'resume-run';
+const TAB_CLOSED_ALARM = 'tab-closed';
 const ACTIVE_PHASES = ['searching', 'scrolling', 'scraping'];
 
 const DEFAULT_SETTINGS = {
@@ -261,9 +263,14 @@ async function startNextZip() {
     found: 0, done: 0, total: 0, doneKeys: [], zipScraped: 0, zipReported: false,
   });
   try {
-    await chrome.tabs.update(s.tabId, { url: searchUrl });
-  } catch (e) {
-    return finishRun('error', `Could not open the Maps tab: ${e.message}`);
+    await chrome.tabs.update(s.tabId, { url: searchUrl, active: true });
+  } catch {
+    try {
+      const created = await chrome.tabs.create({ url: searchUrl, active: true });
+      await patchState({ tabId: created.id });
+    } catch (e) {
+      return finishRun('error', `Could not open the Maps tab: ${e.message}`);
+    }
   }
   // Content script announces itself with CONTENT_READY; tabs.onUpdated is the fallback.
 }
@@ -683,6 +690,8 @@ async function route(msg, sender) {
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === NEXT_ZIP_ALARM) startNextZip();
+  if (alarm.name === RESUME_ALARM) resumeAfterRestart();
+  if (alarm.name === TAB_CLOSED_ALARM) confirmTabClosed();
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -714,8 +723,64 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   const s = await getState();
-  if (s.running && tabId === s.tabId) finishRun('error', 'The scraper tab was closed.');
+  // Chrome also fires this while quitting. Wait briefly so a browser restart can
+  // cancel it and continue the run instead of ending it.
+  if (s.running && tabId === s.tabId) chrome.alarms.create(TAB_CLOSED_ALARM, { when: Date.now() + 4000 });
 });
+
+async function confirmTabClosed() {
+  const s = await getState();
+  if (!s.running || s.tabId == null) return;
+  try {
+    await chrome.tabs.get(s.tabId);
+  } catch {
+    finishRun('error', 'The scraper tab was closed.');
+  }
+}
+
+/** Continue a run after Chrome quits or crashes. Places already saved stay in doneKeys. */
+async function resumeAfterRestart() {
+  let s = await getState();
+  const interrupted = !s.running && s.phase === 'stopped'
+    && /Browser restarted/.test(s.message || '') && s.zip && !s.zipReported;
+  if (s.paused) return;
+  if (!s.running && !interrupted) return;
+  if (interrupted) s = await patchState({ running: true, paused: false });
+  await chrome.alarms.clear(TAB_CLOSED_ALARM);
+
+  if (!s.zip || s.phase === 'waiting' || s.phase === 'starting' || s.phase === 'fetching_zip') {
+    if (s.phase === 'waiting') {
+      await patchState({ message: 'Browser restarted — next ZIP…' });
+      scheduleNextZip(3000, 8000);
+      return;
+    }
+    await patchState({ phase: 'starting', message: 'Browser restarted — continuing…' });
+    startNextZip();
+    return;
+  }
+
+  const url = s.searchUrl
+    || (s.keyword ? buildSearchUrl(`${s.keyword} in ${s.zip.zipcode}`, s.zip) : MAPS_HOME);
+  let tabId = null;
+  try {
+    const tabs = await chrome.tabs.query({ url: 'https://www.google.com/maps/*' });
+    tabId = tabs[0]?.id ?? null;
+  } catch { tabId = null; }
+  if (tabId == null) {
+    const created = await chrome.tabs.create({ url: 'about:blank', active: true });
+    tabId = created.id;
+  }
+  await patchState({
+    tabId,
+    phase: 'searching',
+    message: `Browser restarted — continuing ZIP ${s.zip.zipcode}…`,
+  });
+  try {
+    await chrome.tabs.update(tabId, { url, active: true });
+  } catch (e) {
+    finishRun('error', `Could not reopen Maps after the browser restarted: ${e.message}`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -727,7 +792,14 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (s.running) await patchState({ running: false, paused: false, phase: 'stopped', message: 'Extension updated — press Start to continue.' });
 });
 
-chrome.runtime.onStartup.addListener(async () => {
-  const s = await getState();
-  if (s.running) await patchState({ running: false, paused: false, phase: 'stopped', message: 'Browser restarted — run stopped.' });
+chrome.runtime.onStartup.addListener(() => {
+  chrome.alarms.clear(TAB_CLOSED_ALARM);
+  chrome.alarms.create(RESUME_ALARM, { when: Date.now() + 1500 });
+});
+
+// A run this version already stopped because Chrome restarted. Continue that same ZIP once.
+getState().then((s) => {
+  const interrupted = !s.running && s.phase === 'stopped'
+    && /Browser restarted/.test(s.message || '') && s.zip && !s.zipReported;
+  if (interrupted) chrome.alarms.create(RESUME_ALARM, { when: Date.now() + 1500 });
 });

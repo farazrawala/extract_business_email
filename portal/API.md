@@ -1,6 +1,6 @@
 # Business Portal API
 
-**API version:** 1.27 · **Last updated:** 2026-10-29 · **Works with extensions:** Maps scraper 1.7.4 (`find_business/manifest.json`), ChatGPT email finder 1.1.7 (`find_emails_from_gpt/manifest.json`), Claude email finder 1.1.1 (`find_emails_from_claude/manifest.json`), Gmail business mailer 1.2.5 (`sending_email/manifest.json`)
+**API version:** 1.27 · **Last updated:** 2026-10-30 · **Works with extensions:** Maps scraper 1.7.5 (`find_business/manifest.json`), ChatGPT email finder 1.1.7 (`find_emails_from_gpt/manifest.json`), Claude email finder 1.1.1 (`find_emails_from_claude/manifest.json`), Gmail business mailer 1.2.5 (`sending_email/manifest.json`)
 
 Base URL: `https://email.demo-website.cc/`
 

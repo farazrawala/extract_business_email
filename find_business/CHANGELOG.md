@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.5 – 2026-10-30
+- Chrome restarting no longer ends the run. The same ZIP continues, and places already saved are skipped.
+
 ## 1.7.4 – 2026-10-29
 - A listing whose place panel is slow or titled slightly differently is retried instead of counted as "Details panel did not load in time" on the first miss. A failed ZIP no longer ends the run while Auto-loop is on; the next ZIP starts on its own.
 
